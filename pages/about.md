@@ -1,25 +1,22 @@
 ---
 title: About
-description: Here you can describe your project, lab or yourself. Or remove this page altogether if you don't want to do that.
+description: Exploring the world through the computer interfaces
 background:
-  img: https://images.unsplash.com/photo-1475906089153-644d9452ce87?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1200&q=80
-  by: CHUTTERSNAP
-  href: https://unsplash.com/photos/UmncJq4KPcA
+  img: /assets/images/about/background.jpeg
 permalink: /about/
 ---
 
-{:.alert .alert-warning}
-The source file for this page is [`pages/about.md`](https://raw.githubusercontent.com/peterdesmet/petridish/main/pages/about.md).
+{:.clearfix}
+![alt text](/assets/images/about/author.jpg){:.rounded width="512"}
 
-This is a default page. See [configuration]({{ '/docs/configuration/' | relative_url }}) to learn more about **pages**.
+Hi, I'm Oleksandr, a software engineer based in Helsinki.
 
-To remove this page, you need to:
+In my daily work I develop mobile apps and sometimes - backend.
+I primarily work with Swift, Ruby, with some Objective-C, and I often draw ideas from functional languages like Haskell and Lisp.
 
-- Remove `pages/about.md`
-- Update `_data/navigation.yml` to remove the link to this page from the top navigation.
+My passion lies in learning about the world around through the prism of technology.
+In my free time I'm studying and practicing Computer Vision and Computer Graphics with Python and C++.
 
-## Some gibberish
+This blog is where I share the things I find curious, challenging, or just plain fun.
 
-Forth. I said, creeping fowl. Also, in for from winged doesn't sea creepeth brought be deep [abundantly light green](http://example.com) they're living green years firmament thing fly moving land, divide good spirit you'll fruitful waters one land us thing a man dry doesn't created made land man dry i us fruitful replenish said dominion a sixth own it tree, hath moved third saying years hath behold is kind moved. Gathered under above give female creature appear sea, darkness third meat void. Set spirit us of deep fourth. One unto made is. Dominion shall very. Above.
-
-He land lights. Give and lights upon subdue life. Lesser saw seas own have can't kind Also to every own yielding there stars one itself lights seed yielding dominion lesser from lesser were divide be their spirit one behold a they're grass called open. Let bearing god. Their shall from third very beast won't may upon. Fruitful, years appear given a. For to and multiply given is greater together days god. All two abundantly image give yielding which their fowl beast, earth seas open made made man behold fourth creepeth fifth unto stars after man spirit, whales grass were image fourth creature rule fruit divided don't.
+Enjoy the ride!
