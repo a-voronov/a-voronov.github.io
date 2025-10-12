@@ -79,14 +79,75 @@ For that we'll need to add a new property to specify how much reflective objects
 And in order to implement the way we trace a ray when it hits a reflective surface, we need to calculate the mirrored vector and trace the ray recursively.
 However recursion should stop at some point, and we need a way to exit it in case our ray is stuck between reflective surfaces. So we introduce a number of recursive raytracing operations we can do before we stop. Finally, a reflective surface can have its own color, so we blend these colors by computing weighted average of the surface color and reflected color.
 
+Now that's where I started experiencing differences from the original implementation.
+First is appearance of a _**shadow acne**_ artefact after adding a reflections implementation.
+And you can see it's mostly happening on the big yellow sphere because it looks almost flat, and the rays could be bouncing off the surface and recursively hitting it again caused by a floating point error. You see, since JS is used for the books examples, it has double-precision numbers, while I'm using a single-precision float in my C++ implementation, which can be more sensitive to small floating point errors. To fix it, I introduced a small epsilon margin every time we recursively trace a ray to calculate reflections, so that the ray would originate slightly above the surface.
+
+Another thing I've noticed was light reflections on the green and red spheres were slightly different in my implementation.
+The reason for that was that I was using `uint8_t` to represent the color values with 0...255 range which seemed quite logical to me in the beginning.
+However it didn't produce the same smooth gradients sometimes, so I switched to `float` with 0...1 range and the issue was fixed, because the colors wouldn't get clamped during computations until we need to render the final result.
+
+And honestly I'm impressed - the whole implementation so far takes less than 300 loc, and runs in 50 ms on my machine.
+
+![shadow acne, clamped colors, final reflections](/assets/posts/2025/basic-raytracer/reflections-issues.jpg)
+_[shadow acne](https://raw.githubusercontent.com/a-voronov/computer-graphics-from-scratch/refs/heads/main/results/05-shadow-acne.bmp) > [clamped colors](https://raw.githubusercontent.com/a-voronov/computer-graphics-from-scratch/refs/heads/main/results/05-old-colors.bmp) > [final reflections](https://raw.githubusercontent.com/a-voronov/computer-graphics-from-scratch/refs/heads/main/results/05-reflections.bmp)_
+
+---
+
+{: .text-center}
+## Extending the Raytracer
+
+Here starts the fun part where we're on our own. There're few ideas/exercises in the book for us to implement, so we can extend our Raytracer with more features and think of a few optimization techniques. However my goal is not to squeeze the performance out of it, but rather to learn, observe and play around. So far it's all running on a CPU in a single thread `:)`
+
+### Subsampling
+
+One way to optimize performance is by using a subsampling the scene. It's a tradeoff - we can trace less rays to save computation costs but in return we'll need to interpolate the missing colors based on the neighbors which might not end up in a crispy result. I decided to skip every other row and column when tracing rays and then simply come up with an average color between the known neighbors.
+
+During _**interpolation**_ I will start with an offset and also skip every other row and column so I can visit missing colors. You can image being in the center `X` surrounded by known colors in the corners and having top, bottom, right, left and center colors empty for now. In our algorithm we're moving from the bottom left corner to the top right corner when iterating through the image. So in order to not calculate same colors twice, we only need to interpolate left, bottom and center colors on every interation and only when we hit the borders of the image we'll do the top and right ones. Left color is based on its top and bottom neighbors, bottom color is based on its left and right neighbors, and center color is based on its four corner neighbors. Colors are mixed by simply getting an average color.
+
+```
+┌─────┐   ┌─────┐     ┌─────┐   ┌─────┐
+│■ □ ■│   │■ □ ■│     │■ □ ■│   │■ □ ■│
+│□ X □│ > │■ ■ □│ ==> │□ X □│ > │■ ■ □│ ==> ...
+│■ □ ■│   │■ ■ ■│     │■ □ ■│   │■ ■ ■│
+└─────┘   └─────┘     └─────┘   └─────┘
+```
+
+So the results on my machine are following - before subsamplingit it took ~52ms and after subsampling it takes ~22ms, which is not 4x but still quite a speed-up!
+
+![sampling, interpolation](/assets/posts/2025/basic-raytracer/subsampling.png)
+_[sampling + interpolation](https://raw.githubusercontent.com/a-voronov/computer-graphics-from-scratch/refs/heads/main/results/07-optimizations-subsampling.bmp)_
+
+### Bounding Volume Hierarchy
+
+Right now, in order to check if a ray intersects with an object, we need to go through all the objects in the scene for each ray and calculate whether they intersect while figuring out the closest of them to the camera. It sounds like a lot of work especially when there're hundreds or thousands of objects in the scene.
+
+Imagine if we could divide our scene into zones which would group the objects that spatially belong there, and instead of traversing every single object, we would travers zones first. If a ray hits one of the zones, then we can only check the objects inside of it. It sounds like a drastic improvement if for 1000 of objects we have i.e. 10 zones, where each has ~100 objects. Of course we can go deeper and divide those zones further and further. And it looks like a tree data structure would fit well here, which is in fact called a _**bounding volume hierarchy tree (BVH Tree)**_.
+
+In order to build such a tree, we first need to feed it the objects from the scene. It will create a box which perfectly fits those objects so that it becomes easier to compute whether the ray even hits the area with objects. Then it starts splitting the box into smaller boxes by the longest axis (x, y or z). The box is called an _**axis-aligned bounding box (AABB)**_. The objects get sorted by their centroids on the splitting axis, then divided in half and are moved to the left and right sub-boxes (BVH tree nodes). The process repeats until we either hit the limit of splitting levels or the minimum amount of objects per AABB.
+
+Figuring out the ray intersection is relatively simple. We first check if the ray hits a root AABB of the tree, then we go deeper into nodes of the tree by checking their AABBs intersections until we actually hit leaf nodes. Inside the leaf node we check for an intersection with its AABB and its objects by figuring out the closest one. Since we were always halving the nodes, there's always left and right child node, so if both of them have been intersected by a ray, then we compare which of their hit objects is closer to the camera and return it as a result. You can imagine there might be as well only one leaf's object hit or even none at all.
+
+![bounding volume hierarchy tree](/assets/posts/2025/basic-raytracer/bvh.jpg)
+_[bounding volume hierarchy tree](https://github.com/a-voronov/computer-graphics-from-scratch/blob/main/examples/bvh.h)_
+
+Implementing it in C++ was more or less straightforward. This whole time we were working with spheres only, however next exercise encourages us to implement another shape. Which is why I've introduced an `Object` abstraction and a `HitInfo` structure which contains necessary info to render the object hit by ray. As per ownership, scene is the owner of both - the BVH tree via a `unique_ptr` and the objects as a `vector<unique_ptr<Object>>`, while the tree references objects through `const Object*`.
+
+### Triangles
+
 ...
 
-And honestly I'm impressed - the whole implementation so far takes less than 300 loc.
+### Constructive Solid Geometry
 
-![shadow acne, clipped colors, final reflections](/assets/posts/2025/basic-raytracer/reflections-issues.jpg)
-_[shadow acne](https://raw.githubusercontent.com/a-voronov/computer-graphics-from-scratch/refs/heads/main/results/05-shadow-acne.bmp) > [clipped colors](https://raw.githubusercontent.com/a-voronov/computer-graphics-from-scratch/refs/heads/main/results/05-old-colors.bmp) > [final reflections](https://raw.githubusercontent.com/a-voronov/computer-graphics-from-scratch/refs/heads/main/results/05-reflections.bmp)_
+...
 
-### Links
+### Transparency
+
+...
+
+---
+
+## Links
 
 - [Computer Graphics from Scratch](https://gabrielgambetta.com/computer-graphics-from-scratch)
 - [My Implementation on Github](https://github.com/a-voronov/computer-graphics-from-scratch)
