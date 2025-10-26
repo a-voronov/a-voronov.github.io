@@ -324,13 +324,37 @@ _[constructive solid geometry](https://github.com/a-voronov/computer-graphics-fr
 
 ### Transparency
 
-And now we're coming to the final Raytracer extension here - adding a transparency and refraction.
+And now we're coming to the final Raytracer extension here - adding _**transparency**_ and _**refraction**_.
+Implementing it didn't seem like a lot of work - it's quite similar to reflection just a different formula.
+However it took me some time to figure it out to a satisfying result.
 
+- In order to implement refraction we go with _**Snell's law**_, however it seems more geometric while we're working with direction vectors, not explicit angles, so it had to be adjusted a bit (vector operations use _cos_ instead of _sin_).
+- Next, we are mixing reflection with transparency (also semi-transparent materials with their own colors) and refraction - which made it difficult to debug at first.
+- And finally we're met with reflecting transparent primitives from other primititves, and seeing transparent primitives through other transparent primitives.
 
+So to simplify things, I removed reflection and focused only on pure transparency once the refraction formula was done.
+Then I started adding material's own color to the transparency and checking if semi-transparency works fine.
+And in order to blend colors, we first need to normalize them to avoid oversaturation, and then blend together reflection color + refraction color + local object's color as a good old weighted average of those colors.
 
-- Snell's law for refraction
-- Transparency
-- Blending colors
+Now when I thougt everything was working properly I've noticed that some objects in reflections lack details which took me some time to debug the code only to figure out the `recursion_depth` argument which I've completely forgotten of `:D` It basically controls how many times we can recursively trace a ray when it reflects off of an object or refracts through it. However increasing *recursion_depth* level leads to more computations needed to render a picture, hence it's a tradeoff between speed and a satisfacting amount of details.
+
+To demosntrate how transparency works I've created two objeects:
+  - Magnifying lens (on top of triangles) built using CSG by itersecting two spheres, it is a completely transparent material with a refraction value of 1.5.
+  - Fishbowl sphere with refraction of 1.1 and transparcy of 0.8, and a cyan color.
+
+![a scene demonstrating trransparent objects with raytracing recursion depth 2](/assets/posts/2025/basic-raytracer/transparency-rt-depth-2.jpg)
+_With a recursion depth of 2 you can see some details in reflections, but already flat objects in refraction._
+
+![a scene demonstrating trransparent objects with raytracing recursion depth 3](/assets/posts/2025/basic-raytracer/transparency-rt-depth-3.jpg)
+_By increasing recursion depth to 3 it already looks good but we loose lense details in its reflection from a yellow ball which we observe through a fishbowl refraction._
+
+![a scene demonstrating trransparent objects with raytracing recursion depth 4](/assets/posts/2025/basic-raytracer/transparency-rt-depth-4.jpg)
+_And with a recursion depth of 4 we can see a decent amount of details._
+
+### Conclusion
+
+In conclusion I had a lot of fun learning and building a Raytracer.
+It helped me to practice with vector operations, feel a bit more confident in 3D space, and look behind the curtains of the computer graphics magic ✨
 
 ---
 
